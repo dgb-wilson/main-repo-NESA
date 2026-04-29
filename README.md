@@ -12,3 +12,10 @@ EDIT: I realise this has not preserved the git history. I have also added links 
 - contains a repo with the task solutions during the assessment
 - for git history see https://github.com/dgb-wilson/NESA_Assessment
 
+## Technical Writing
+
+Here is a paper that I wrote as part of my PhD thesis, I wrote the paper in its entirety with comments by coauthors and reviewers.
+https://www.nature.com/articles/s42005-021-00732-y
+
+
+
