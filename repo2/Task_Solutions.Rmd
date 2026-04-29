@@ -1,0 +1,162 @@
+---
+title: "Task Solutions"
+output: html_document
+---
+
+## Task 1
+
+**1.** Let $X$ be a complex torus of dimension $17$ that contains an abelian variety of dimension $10$. Recall that the algebraic dimension of $X$ is the transcendence degree of the field of meromorphic functions of $X$ over $\mathbb{C}$. What is the smallest possible value of the algebraic dimension of $X$?
+
+The following paper may be helpful for Task 1: <https://doi.org/10.48550/arXiv.2106.10308>
+
+### Solution
+
+The linked paper, cites in its Abstract. 'It is known that a “very general” complex torus T of dimension dim(T) = g ≥ 2 has the algebraic dimension a(T) = 0.'
+
+We have $X$ a complex torus of dimension $17$. If we can be sure that the constraint 'abelian variety of dimension $10$' does not render the Torus as no longer 'very general'. Then sthe smallest algebraic dimension can be 0.
+
+## Task 2
+
+**2.** Using `aluminium.csv`, which contains columns `strain` and `stress`, fit a one-breakpoint Bayesian piecewise linear model to estimate the yield point of the aluminium sample. Let
+
+$$y_i \mid \beta_1,\beta_2,\tau,\sigma^2 \sim N(\mu_i,\sigma^2),$$
+
+where
+
+$$\mu_i =
+\begin{cases}
+\beta_1 x_i, & x_i \le \tau,\\
+\beta_1 \tau + \beta_2 (x_i-\tau), & x_i > \tau,
+\end{cases}$$
+
+so that the two lines meet continuously at the breakpoint $\tau$ (yield point). Assume independent priors
+
+$$\beta_j \mid \sigma^2,\tau \sim N(30000,\,20000^2 \sigma^2), \qquad j=1,2,$$
+
+a discrete uniform prior on $\tau$ over the candidate breakpoints, and
+
+$$\sigma^2 \mid \tau \sim \mathrm{Inverse\text{-}Gamma}(4,\,13.12).$$
+
+Report posterior summaries, including the estimated yield point (breakpoint) by producing a plot of the observed stress-strain data together with the fitted posterior mean curve. If time permits, build a small Shiny app that allows the user to vary the prior settings and explore how the fitted curve, posterior summaries, and estimated yield point change.
+
+In your solution, explain how you approached the implementation of the model and how that approach would change if the dataset were much larger or if the number of candidate breakpoints increased substantially (in gigabytes). Discuss the main trade-offs you would consider.
+
+### Solution
+
+#### Visualise the data
+```{r}
+aluminium_data <- read.csv("Data/aluminium.csv")
+
+library(ggplot2)
+
+aluminium_data |> ggplot(aes(x=strain,y=stress)) + geom_smooth() + geom_point()
+
+```
+We can see that there is a kink at around strain 0.005
+
+This gives us a ball park value where we expect a breakpoint,
+
+#### Fit a one-breakpoint Bayesian piecewise linear model
+
+I will use the package mcp (https://lindeloev.github.io/mcp/) in order to perform this regression.
+
+The docs can be found here (https://cloud.r-project.org/web/packages/mcp/mcp.pdf)
+
+##### install and load package and check it is working
+
+```{r}
+
+install.packages("mcp")
+
+library(mcp)
+
+### This is the example off of the tutorial
+
+
+# Define the model
+model = list(
+  response ~ 1,  # plateau (int_1)
+  ~ 0 + time,    # joined slope (time_2) at cp_1
+  ~ 1 + time     # disjoined slope (int_3, time_3) at cp_2
+)
+
+# Get example data and fit it
+ex = mcp_example("demo")
+fit = mcp(model, data = ex$data)
+plot(fit)
+
+
+```
+Note you will need to install JAGS follow the URL provided (https://sourceforge.net/projects/mcmc-jags/)
+
+#### Setting up the model
+
+I found a tutorial on modeling the slope change points (https://lindeloev.github.io/mcp/articles/formulas.html#modeling-slope-change-points)
+
+
+
+```{r}
+
+model <- list(
+  stress ~ 0 + strain,        # Segment 1: beta_1 * x (no intercept)
+         ~ 1 + strain  # Segment 2: beta_2 * (x - tau)
+)
+
+prior <- list(
+  cp_1 ~ dunif(min(aluminium_data$strain), max(aluminium_data$strain))
+)
+
+fit <- mcp(model, data = aluminium_data, prior = prior)
+
+plot(fit)
+
+```
+#### Including priors
+
+I have implemented below hierarchical priors as specified in the task
+
+```{r}
+
+model <- list(
+  stress ~ 0 + strain,        # Segment 1: beta_1 * x (no intercept)
+         ~ 1 + strain         # Segment 2: beta_2 * (x - tau)
+)
+
+prior <- list(
+
+  # Hyperpriors
+  mu_beta ~ 30000,
+  sigma_beta ~ 20000 * sqrt( dinvgamma(4,13.12)),
+
+  # Hierarchical coefficients
+  strain_1 ~ dnorm(mu_beta, sigma_beta),
+  strain_2 ~ dnorm(mu_beta, sigma_beta),
+
+  # Change point
+  cp_1 ~ dunif(min(aluminium_data$strain),
+               max(aluminium_data$strain)),
+
+  # Observation noise
+  sigma ~ dunif(0, 100)
+)
+
+fit <- mcp(model, data = aluminium_data, prior = prior)
+
+plot(fit)
+
+```
+#### Viewing the fit paramets
+
+
+```{r}
+summary(fit)
+
+```
+
+We see that the estimated mean breakpoint is 0.0042. Close to our visual estimate of below 0.005.
+
+#### How I would expand this model
+
+If the data was much larger on the order of gigabytes. I would consider stratified sampling from the stress and strain data. I would bin the strain and sample datapoints from these bins. I would check visually that  the overall shape has not been affected by my binning. I would repeat sampling and check the fits as a sensitivity test.
+
+For much larger numbers of breakpoints. I would build code that automated the construction of the formula that is required for the model. It would not be hard coded.

@@ -1,0 +1,41 @@
+---
+title: "What AI tools did I use"
+output: html_document
+---
+
+
+## ChatGPT
+
+### Prompt 1
+In order to get code using the mcp() package I queried ChatGPT
+
+with the prompt:
+
+
+'Using the R package mcp create a linear model with one breakpoint. The first model is beta_1 x The second model is beta_1 * tau + beta_2 * (x - tau) we want to estimate tau'
+
+It provided some sample code that I copied into RStudio and adapted for our purposes.
+
+### Prompt 2
+
+To fix a bug I used the prompt:
+
+'model <- list(
+  strain ~ 0 + stress,        # Segment 1: beta_1 * x (no intercept)
+  ~ 0 + I(stress - cp_1) # Segment 2: beta_2 * (x - tau)
+)
+
+prior <- list(
+  cp_1 ~ dunif(min(aluminium_data$strain), max(aluminium_data$strain))
+)
+
+fit <- mcp(model, data = aluminium_data, prior = prior)'
+
+It told me I was missing the response variable in the second formula.
+
+It turns out this was classic wrong answer from AI.
+
+
+### Prompt 3
+
+can i get this prior <- list( int_1 ~ dnorm(0, 10), strain_1 ~ dnorm(0, 10), strain_2 ~ dnorm(0, 10), cp_1 ~ dunif(min(aluminium_data$strain), max(aluminium_data$strain)), sigma ~ dunif(0, 100) ) with hierarcichal priors
